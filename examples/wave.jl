@@ -3,17 +3,19 @@
 # Author: Nathan Chapman
 # Date: 7/10/24
 
-include("../src/Parareal.jl")
-using Plots, .Parareal
+using Plots, Distributed
+addprocs(2)
+@everywhere include("../src/Parareal.jl")
+@everywhere using .Parareal
 
 # DEFINE THE SECOND-ORDER INITIAL VALUE PROBLEM
-"""
-    acceleration(position :: Float64, velocity :: Float64) :: Float64
+# """
+#     acceleration(position :: Float64, velocity :: Float64) :: Float64
 
-Define the acceleration in terms of the given differential equation.
-"""
-function acceleration(position :: Float64, velocity :: Float64) :: Float64
-    return -position # this encodes the differential equation u''(t) = -u
+# Define the acceleration in terms of the given differential equation.
+# """
+@everywhere function acceleration(position :: Float64, velocity :: Float64, k = 1) :: Float64
+    return -k^2 * position # this encodes the differential equation u''(t) = -u
 end
 
 const INITIALPOSITION = 1.
@@ -23,20 +25,30 @@ const IVP             = SecondOrderIVP(acceleration, INITIALPOSITION, INITIALVEL
 
 # DEFINE THE COARSE AND FINE PROPAGATION SCHEMES
 const PROPAGATOR           = velocityVerlet
-const COARSEDISCRETIZATION = 2^0 * Threads.nthreads()     # 1 region per core
+const COARSEDISCRETIZATION = 2^2 * Threads.nthreads()     # 1 region per core
 const FINEDISCRETIZATION   = 2^1 * COARSEDISCRETIZATION
 
 const COARSEPROPAGATOR = Propagator(PROPAGATOR, COARSEDISCRETIZATION)
 const FINEPROPAGATOR   = Propagator(PROPAGATOR, FINEDISCRETIZATION)
 
-discretizedDomain, discretizedRange = parareal(IVP, COARSEPROPAGATOR, FINEPROPAGATOR)
+ivpVector = [SecondOrderIVP((x, v) -> acceleration(x, v, k), INITIALPOSITION, INITIALVELOCITY, DOMAIN) for k in 1:nworkers()]
+solutionVector = pmap(ivp -> parareal(ivp, COARSEPROPAGATOR, FINEPROPAGATOR), ivpVector, on_error = identity)
+
+# discretizedDomain, discretizedRange = parareal(IVP, COARSEPROPAGATOR, FINEPROPAGATOR)
 
 # plotting
-plot(
-    discretizedDomain, 
-    [discretizedRange, cos.(discretizedDomain)],
-    label = ["numeric" "analytic"],
+plt = plot(
+    solutionVector[1].domain, 
+    [sol.range for sol in solutionVector],
+    label = ["numeric: $k" for k in 1:nworkers()] |> permutedims,
     title = "coarse: $COARSEDISCRETIZATION, fine: $FINEDISCRETIZATION"
 )
+plot!(
+    solutionVector[1].domain,
+    [cos.(n * solutionVector[1].domain) for n in 1:nworkers()],
+    label = ["analytic: $k" for k in 1:nworkers()] |> permutedims
+)
+display(plt)
+readline()
 # Dots to highlight numeric solution
-scatter!(discretizedDomain, discretizedRange, label = "")
+# scatter!(solutionVector.domain, solution, label = "")
