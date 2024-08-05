@@ -15,12 +15,12 @@ include("discretization.jl")
 include("propagation.jl")
 
 """
-    parareal(ivp :: FirstOrderIVP, coarsePropagator :: Propagator, finePropagator :: Propagator)
+    parareal(ivp :: FirstOrderIVP, coarsePropagator :: Propagator, finePropagator :: Propagator) :: Solution
 
 Numerically solve the given initial value problem in parallel using a given
 propagator and discretizations.
 """
-function parareal(ivp :: FirstOrderIVP, coarsePropagator :: Propagator, finePropagator :: Propagator)
+function parareal(ivp :: FirstOrderIVP, coarsePropagator :: Propagator, finePropagator :: Propagator) :: Solution
     # Some notes on terminology and consistency
     # IVP.................A structure representing an initial value problem
     #                     consisting of a derivative function, an initial value
@@ -75,16 +75,16 @@ function parareal(ivp :: FirstOrderIVP, coarsePropagator :: Propagator, fineProp
         discretizedRange = propagate(ivp, coarsePropagator, correctors).range
         subProblems         = FirstOrderIVP.(ivp.der, discretizedRange[1:end-1], subDomains)
     end
-    return [discretizedDomain, discretizedRange]
+    return Solution(discretizedDomain, discretizedRange)
 end
 
 """
-    parareal(ivp :: SecondOrderIVP, coarsePropagator :: Propagator, finePropagator :: Propagator)
+    parareal(ivp :: SecondOrderIVP, coarsePropagator :: Propagator, finePropagator :: Propagator) :: Solution
 
 Numerically solve the given initial value problem in parallel using a given
 propagator and discretizations.
 """
-function parareal(ivp :: SecondOrderIVP, coarsePropagator :: Propagator, finePropagator :: Propagator)
+function parareal(ivp :: SecondOrderIVP, coarsePropagator :: Propagator, finePropagator :: Propagator) :: Solution
     # Some notes on terminology and consistency
     # IVP.................A structure representing an initial value problem
     #                     consisting of a derivative function, an initial value
@@ -144,6 +144,6 @@ function parareal(ivp :: SecondOrderIVP, coarsePropagator :: Propagator, finePro
         discretizedRange, discretizedVelocity = corrected.range, corrected.derivative
         subProblems = SecondOrderIVP.(ivp.acceleration, discretizedRange[1:end-1], discretizedVelocity[1:end-1], subDomains)
     end
-    return [discretizedDomain, discretizedRange]
+    return Solution(discretizedDomain, discretizedRange)
 end
 end
