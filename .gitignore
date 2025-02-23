@@ -22,3 +22,12 @@ docs/site/
 # committed for packages, but should be committed for applications that require a static
 # environment.
 Manifest.toml
+
+# Ignore build files from Manim
+viz/__pycache__/
+viz/.cache/
+viz/media/images/
+viz/media/Tex/
+viz/media/texts/
+viz/media/videos/parareal_animation/*/partial_movie_files/
+viz/.bash_history
